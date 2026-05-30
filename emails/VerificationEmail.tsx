@@ -32,7 +32,7 @@ export default function VerificationEmail({ username, otp }: VerificationEmailPr
         />
       </Head>
       <Preview>Here&apos;s your verification code: {otp}</Preview>
-      <S ection>
+      <Section>
         <Row>
           <Heading as="h2">Hello {username},</Heading>
         </Row>
