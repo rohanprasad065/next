@@ -33,3 +33,4 @@ const UserSchema: Schema <User>= new Schema({
 })
 
 const UserModel = (mongoosem.models.User as mongoosem.Model<User>) || mongoosem.model<User>('User', UserSchema)
+export default UserModel;
