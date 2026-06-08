@@ -1,164 +1,198 @@
 'use client'
+
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useDebounceValue } from 'usehooks-ts'
-import { toast } from "sonner"
+import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
-import {signInSchema} from "@/schemas/signInSchema"
+import { signUpSchema } from '@/schemas/signUpSchema'
 import axios, { AxiosError } from 'axios'
 import { ApiResponse } from '@/types/ApiResponse'
-import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from "@/components/ui/"
-import { Button } from '@react-email/components'
+
+import { Field, FieldLabel, FieldError } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+
 import { Loader2 } from 'lucide-react'
 
-const page = () => {
+const Page = () => {
   const [username, setUsername] = useState('')
-  const [ usernemeMessage, setUsernameMessage] = useState('')
+  const [usernemeMessage, setUsernameMessage] = useState('')
   const [isCheckingUsername, setIsCheckingUsername] = useState(false)
   const [issubmiting, setIsSubmiting] = useState(false)
 
-  const router = useRouter();
-  const DebouncedUsername = useDebounceValue(username, 500)
-  
-  const form = useForm({
-    resolver: zodResolver(signInSchema),
+  const router = useRouter()
+
+  const [debouncedUsername] = useDebounceValue(username, 500)
+
+  const form = useForm<z.infer<typeof signUpSchema>>({
+    resolver: zodResolver(signUpSchema),
     defaultValues: {
       username: '',
       email: '',
       password: '',
-
     },
-
   })
+
   useEffect(() => {
     const checkUsernameUnique = async () => {
-      if (DebouncedUsername){
-        setIsCheckingUsername(true)
-        setUsernameMessage('')
-        try {
-          const response = await axios.get(`/api/check-username-unique?username=${DebouncedUsername}`)
-          setUsernameMessage(response.data.message)
-        } catch (error) {
-          const axiosError = error as AxiosError<ApiResponse>;
-          setUsernameMessage(axiosError.response?.data.message || 'Error checking username')
-        } finally {
-          setIsCheckingUsername(false)
-        }
+      if (!debouncedUsername) return
+
+      setIsCheckingUsername(true)
+      setUsernameMessage('')
+
+      try {
+        const response = await axios.get(
+          `/api/check-username-unique?username=${debouncedUsername}`
+        )
+
+        setUsernameMessage(response.data.message)
+      } catch (error) {
+        const axiosError = error as AxiosError<ApiResponse>
+
+        setUsernameMessage(
+          axiosError.response?.data.message ||
+            'Error checking username'
+        )
+      } finally {
+        setIsCheckingUsername(false)
       }
     }
+
     checkUsernameUnique()
+  }, [debouncedUsername])
 
-      
-  },[DebouncedUsername])
-
-  const onSubmit = async(data: z.infer<typeof signInSchema>) => {
+  const onSubmit = async (
+    data: z.infer<typeof signUpSchema>
+  ) => {
     setIsSubmiting(true)
+
     try {
-      const response = await axios.post<ApiResponse>('/api/sign-in', data)
+      const response = await axios.post<ApiResponse>(
+        '/api/sign-up',
+        data
+      )
+
       toast.success(response.data.message)
+
       router.replace(`/verify/${username}`)
-      setIsSubmiting(false)
     } catch (error) {
-      console.error('Error signing in:', error)
-      const axiosError = error as AxiosError<ApiResponse>;
-      let errorMessage = axiosError.response?.data.message || 'Error signing in. Please try again.'
+      console.error('Error signing up:', error)
+
+      const axiosError = error as AxiosError<ApiResponse>
+
+      const errorMessage =
+        axiosError.response?.data.message ||
+        'Error signing up. Please try again.'
+
       toast.error(errorMessage)
+    } finally {
       setIsSubmiting(false)
     }
-
-
-
   }
+
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100">
-  <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
-    <div className="text-center">
-      <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl mb-6">
-        Join Mystery Message
-      </h1>
+    <div className="flex min-h-screen items-center justify-center bg-gray-100">
+      <div className="w-full max-w-md space-y-8 rounded-lg bg-white p-8 shadow-md">
+        <div className="text-center">
+          <h1 className="mb-6 text-4xl font-extrabold tracking-tight lg:text-5xl">
+            Join Mystery Message
+          </h1>
 
-      <p className="mb-4">
-        Sign up to start your anonymous adventure
-      </p>
-    </div>
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <p className="mb-4">
+            Sign up to start your anonymous adventure
+          </p>
+        </div>
 
-        <FormField>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-6"
+        >
+          <Field>
+            <FieldLabel htmlFor="username">
+              Username
+            </FieldLabel>
 
-          control={form.control}
-          name="username"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Username</FormLabel>
-              <FormControl>
-                <Input placeholder='username'{...field}
-                onChange={(e) => {
-                  field.onChange(e)
-                  setUsername(e.target.value)
-                }
-                />
-              </FormControl>
-              <FormMessage />
-              </FormItem>
-          )}
-          />
-          <FormField>
+            <Input
+              id="username"
+              placeholder="username"
+              {...form.register('username')}
+              onChange={(e) => {
+                form.setValue('username', e.target.value)
+                setUsername(e.target.value)
+              }}
+            />
 
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input placeholder='email'{...field}
-                onChange={(e) => {
-                  field.onChange(e)
-                  setUsername(e.target.value)
-                }
-                />
-              </FormControl>
-              <FormMessage />
-              </FormItem>
-          )}
-          />
-          <FormField>
+            <div className="text-sm">
+              {isCheckingUsername ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <p>{usernemeMessage}</p>
+              )}
+            </div>
 
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input  type="password" placeholder='password'{...field}
-                onChange={(e) => {
-                  field.onChange(e)
-                  setUsername(e.target.value)
-                }
-                />
-              </FormControl>
-              <FormMessage />
-              </FormItem>
-          )}
-          />
-          <Button type="submit" disabled={isCheckingUsername || issubmiting} className="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition duration-200">
-          {
-            issubmiting?(
+            <FieldError>
+              {form.formState.errors.username?.message}
+            </FieldError>
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="email">
+              Email
+            </FieldLabel>
+
+            <Input
+              id="email"
+              type="email"
+              placeholder="email"
+              {...form.register('email')}
+            />
+
+            <FieldError>
+              {form.formState.errors.email?.message}
+            </FieldError>
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="password">
+              Password
+            </FieldLabel>
+
+            <Input
+              id="password"
+              type="password"
+              placeholder="password"
+              {...form.register('password')}
+            />
+
+            <FieldError>
+              {form.formState.errors.password?.message}
+            </FieldError>
+          </Field>
+
+          <Button
+            type="submit"
+            disabled={
+              isCheckingUsername || issubmiting
+            }
+            className="w-full"
+          >
+            {issubmiting ? (
               <>
-              <Loader2 className = "mr-2 h-4 w-4 animate-spin" /> pleas wait
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Please wait
               </>
-            ):(
-              "Sign In")
-          }
-          </FormField>
-        
-      </form>
-  
-</div>   
+            ) : (
+              'Sign Up'
+            )}
+          </Button>
+        </form>
+      </div>
+    </div>
   )
 }
 
-export default page; 
+export default Page
+ 

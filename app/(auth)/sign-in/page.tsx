@@ -4,92 +4,47 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
 import { useRouter } from 'next/navigation'
-import { useDebounceValue } from 'usehooks-ts'
 import { toast } from 'sonner'
-import { useEffect, useState } from 'react'
 import { signInSchema } from '@/schemas/signInSchema'
-import axios, { AxiosError } from 'axios'
-import { ApiResponse } from '@/types/ApiResponse'
 
 import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
 import { Loader2 } from 'lucide-react'
+import { signIn } from 'next-auth/react'
 
 const Page = () => {
-  const [username, setUsername] = useState('')
-  const [usernemeMessage, setUsernameMessage] = useState('')
-  const [isCheckingUsername, setIsCheckingUsername] = useState(false)
-  const [issubmiting, setIsSubmiting] = useState(false)
-
   const router = useRouter()
-
-  const [debouncedUsername] = useDebounceValue(username, 500)
 
   const form = useForm<z.infer<typeof signInSchema>>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
-      username: '',
       email: '',
       password: '',
     },
   })
 
-  useEffect(() => {
-    const checkUsernameUnique = async () => {
-      if (!debouncedUsername) return
-
-      setIsCheckingUsername(true)
-      setUsernameMessage('')
-
-      try {
-        const response = await axios.get(
-          `/api/check-username-unique?username=${debouncedUsername}`
-        )
-
-        setUsernameMessage(response.data.message)
-      } catch (error) {
-        const axiosError = error as AxiosError<ApiResponse>
-
-        setUsernameMessage(
-          axiosError.response?.data.message ||
-            'Error checking username'
-        )
-      } finally {
-        setIsCheckingUsername(false)
-      }
-    }
-
-    checkUsernameUnique()
-  }, [debouncedUsername])
+  const {
+    formState: { isSubmitting },
+  } = form
 
   const onSubmit = async (
     data: z.infer<typeof signInSchema>
   ) => {
-    setIsSubmiting(true)
+    const result = await signIn('credentials', {
+      identifier: data.email,
+      password: data.password,
+      redirect: false,
+    })
 
-    try {
-      const response = await axios.post<ApiResponse>(
-        '/api/sign-in',
-        data
-      )
+    if (result?.error) {
+      toast.error('Invalid credentials')
+      return
+    }
 
-      toast.success(response.data.message)
-
-      router.replace(`/verify/${username}`)
-    } catch (error) {
-      console.error('Error signing in:', error)
-
-      const axiosError = error as AxiosError<ApiResponse>
-
-      const errorMessage =
-        axiosError.response?.data.message ||
-        'Error signing in. Please try again.'
-
-      toast.error(errorMessage)
-    } finally {
-      setIsSubmiting(false)
+    if (result?.url) {
+      router.replace(result.url)
     }
   }
 
@@ -102,7 +57,7 @@ const Page = () => {
           </h1>
 
           <p className="mb-4">
-            Sign up to start your anonymous adventure
+            Sign in to continue
           </p>
         </div>
 
@@ -110,34 +65,6 @@ const Page = () => {
           onSubmit={form.handleSubmit(onSubmit)}
           className="space-y-6"
         >
-          <Field>
-            <FieldLabel htmlFor="username">
-              Username
-            </FieldLabel>
-
-            <Input
-              id="username"
-              placeholder="username"
-              {...form.register('username')}
-              onChange={(e) => {
-                form.setValue('username', e.target.value)
-                setUsername(e.target.value)
-              }}
-            />
-
-            <div className="text-sm">
-              {isCheckingUsername ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <p>{usernemeMessage}</p>
-              )}
-            </div>
-
-            <FieldError>
-              {form.formState.errors.username?.message}
-            </FieldError>
-          </Field>
-
           <Field>
             <FieldLabel htmlFor="email">
               Email
@@ -174,12 +101,10 @@ const Page = () => {
 
           <Button
             type="submit"
-            disabled={
-              isCheckingUsername || issubmiting
-            }
+            disabled={isSubmitting}
             className="w-full"
           >
-            {issubmiting ? (
+            {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Please wait
