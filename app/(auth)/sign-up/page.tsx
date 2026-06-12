@@ -71,7 +71,7 @@ const Page = () => {
 
     try {
       const response = await axios.post<ApiResponse>(
-        '/api/sign-up',
+        '/api/signup',
         data
       )
 
